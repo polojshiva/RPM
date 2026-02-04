@@ -1,0 +1,116 @@
+{
+  "test_date": "2026-01-15T13:00:20.161590",
+  "base_url": "https://dev-wiser-letter-generatorv2.azurewebsites.net",
+  "summary": {
+    "passed": 24,
+    "failed": 1,
+    "warnings": 0
+  },
+  "results": {
+    "passed": [
+      {
+        "test": "Health Check",
+        "message": "Status: 200, Response: {'status': 'healthy', 'version': '2.1.1', 'build_number': 'build-20260109-154845', 'build_date': '2026-01-09T10:18:45Z', 'environment': 'production', 'azure_storage_account': 'devwisersa', 'azure_container': 'letter-generation', 'inbound_json_container': 'letter-generation-inboundjson', 'authentication_mode': 'managed_identity', 'templates_path': '/app/templates', 'legacy_support': True, 'recovery_enabled': True}"
+      },
+      {
+        "test": "Version Check",
+        "message": "Version: 2.1.1"
+      },
+      {
+        "test": "Build Info",
+        "message": "Build: build-20260109-154845"
+      },
+      {
+        "test": "V2 Affirmation (Mail)",
+        "message": "Generated: affirmation_20260115_175946_df2820da.pdf, Blob: https://devwisersa.blob.core.windows.net/letter-ge..."
+      },
+      {
+        "test": "V2 Affirmation (Fax)",
+        "message": "Generated: affirmation_20260115_175954_fd768fa3.pdf, Blob: https://devwisersa.blob.core.windows.net/letter-ge..."
+      },
+      {
+        "test": "V2 Non-Affirmation (Mail)",
+        "message": "Generated: non_affirmation_20260115_175955_51364fd7.pdf, Blob: https://devwisersa.blob.core.windows.net/letter-ge..."
+      },
+      {
+        "test": "V2 Non-Affirmation (Fax)",
+        "message": "Generated: non_affirmation_20260115_175955_a7a88f06.pdf, Blob: https://devwisersa.blob.core.windows.net/letter-ge..."
+      },
+      {
+        "test": "V2 Dismissal (Mail)",
+        "message": "Generated: dismissal_20260115_175956_c0ebc53f.pdf, Blob: https://devwisersa.blob.core.windows.net/letter-ge..."
+      },
+      {
+        "test": "V2 Dismissal (Fax)",
+        "message": "Generated: dismissal_20260115_175958_36be1b01.pdf, Blob: https://devwisersa.blob.core.windows.net/letter-ge..."
+      },
+      {
+        "test": "Batch Affirmation",
+        "message": "Processed 3/3 letters"
+      },
+      {
+        "test": "Batch Non-Affirmation",
+        "message": "Processed 2/2 letters"
+      },
+      {
+        "test": "Batch Dismissal",
+        "message": "Processed 2/2 letters"
+      },
+      {
+        "test": "Validation (Invalid Channel)",
+        "message": "Correctly rejected with 422"
+      },
+      {
+        "test": "Validation (Fax Without Number)",
+        "message": "Correctly rejected with 422"
+      },
+      {
+        "test": "Invalid Endpoint",
+        "message": "Correctly returned 404"
+      },
+      {
+        "test": "Recovery Health",
+        "message": "Status: 200"
+      },
+      {
+        "test": "Recovery Failed Metadata",
+        "message": "Found 0 failed items"
+      },
+      {
+        "test": "Recovery Process All Failed",
+        "message": "Processed 0 items (status: 200)"
+      },
+      {
+        "test": "Fax Metadata (Unprocessed)",
+        "message": "Found 0 unprocessed items"
+      },
+      {
+        "test": "Mail Metadata (Unprocessed)",
+        "message": "Found 0 unprocessed items"
+      },
+      {
+        "test": "Additional Properties",
+        "message": "API accepts additional properties"
+      },
+      {
+        "test": "Null Values",
+        "message": "Handled null values (status: 200)"
+      },
+      {
+        "test": "Empty Strings",
+        "message": "Handled empty strings (status: 200)"
+      },
+      {
+        "test": "Response Structure",
+        "message": "Response has all required fields"
+      }
+    ],
+    "failed": [
+      {
+        "test": "Validation (Missing Fields)",
+        "message": "Expected 422, got 200"
+      }
+    ],
+    "warnings": []
+  }
+}

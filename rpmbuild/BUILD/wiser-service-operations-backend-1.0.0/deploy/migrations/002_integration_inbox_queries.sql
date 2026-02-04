@@ -1,0 +1,185 @@
+-- Integration Inbox Processing Queries
+-- Purpose: SQL queries for polling, claiming, and updating inbox messages
+-- Schema: service_ops, integration
+-- Usage: These queries are used by the MessagePollerService in the application
+
+-- ============================================================================
+-- B) READ-ONLY POLLING SQL (Integration side)
+-- ============================================================================
+-- Query to fetch a batch of new rows from integration.send_serviceops
+-- Parameters: :last_created_at, :last_message_id, :batch_size
+
+-- Example usage:
+-- SELECT 
+--     message_id,
+--     decision_tracking_id,
+--     payload,
+--     created_at
+-- FROM integration.send_serviceops
+-- WHERE is_deleted = false
+--     AND payload->>'message_type' = 'ingest_file_package'
+--     AND (
+--         created_at > :last_created_at
+--         OR (created_at = :last_created_at AND message_id > :last_message_id)
+--     )
+-- ORDER BY created_at ASC, message_id ASC
+-- LIMIT :batch_size;
+
+-- ============================================================================
+-- C) IDEMPOTENT INSERT INTO INBOX
+-- ============================================================================
+-- Insert a message into inbox, ignoring if already exists (idempotent)
+-- Returns: affected_rows (0 if already exists, 1 if inserted)
+
+-- Example usage:
+-- INSERT INTO service_ops.integration_inbox (
+--     message_id,
+--     decision_tracking_id,
+--     message_type,
+--     source_created_at,
+--     status
+-- )
+-- VALUES (
+--     :message_id,
+--     :decision_tracking_id,
+--     :message_type,
+--     :source_created_at,
+--     'NEW'
+-- )
+-- ON CONFLICT (decision_tracking_id, message_type) DO NOTHING
+-- RETURNING inbox_id;
+
+-- ============================================================================
+-- D) MULTI-WORKER SAFE "CLAIM" QUERY
+-- ============================================================================
+-- Atomically claim one eligible job for processing
+-- Parameters: :worker_id, :stale_lock_minutes (default 10)
+
+-- Example usage:
+-- WITH claimed AS (
+--     UPDATE service_ops.integration_inbox
+--     SET 
+--         status = 'PROCESSING',
+--         locked_by = :worker_id,
+--         locked_at = NOW(),
+--         attempt_count = attempt_count + 1,
+--         updated_at = NOW()
+--     WHERE inbox_id = (
+--         SELECT inbox_id
+--         FROM service_ops.integration_inbox
+--         WHERE status IN ('NEW', 'FAILED')
+--             AND next_attempt_at <= NOW()
+--             AND (
+--                 locked_at IS NULL
+--                 OR locked_at < NOW() - INTERVAL ':stale_lock_minutes minutes'
+--             )
+--         ORDER BY source_created_at ASC, message_id ASC
+--         LIMIT 1
+--         FOR UPDATE SKIP LOCKED
+--     )
+--     RETURNING *
+-- )
+-- SELECT * FROM claimed;
+
+-- Alternative simpler version (PostgreSQL 9.5+):
+-- UPDATE service_ops.integration_inbox
+-- SET 
+--     status = 'PROCESSING',
+--     locked_by = :worker_id,
+--     locked_at = NOW(),
+--     attempt_count = attempt_count + 1,
+--     updated_at = NOW()
+-- WHERE inbox_id = (
+--     SELECT inbox_id
+--     FROM service_ops.integration_inbox
+--     WHERE status IN ('NEW', 'FAILED')
+--         AND next_attempt_at <= NOW()
+--         AND (
+--             locked_at IS NULL
+--             OR locked_at < NOW() - INTERVAL ':stale_lock_minutes minutes'
+--         )
+--     ORDER BY source_created_at ASC, message_id ASC
+--     LIMIT 1
+--     FOR UPDATE SKIP LOCKED
+-- )
+-- RETURNING *;
+
+-- ============================================================================
+-- E) MARK COMPLETION / FAILURE SQL
+-- ============================================================================
+
+-- 1) Mark DONE (successful processing)
+-- Parameters: :inbox_id
+-- UPDATE service_ops.integration_inbox
+-- SET 
+--     status = 'DONE',
+--     updated_at = NOW(),
+--     locked_by = NULL,
+--     locked_at = NULL,
+--     last_error = NULL
+-- WHERE inbox_id = :inbox_id;
+
+-- 2) Mark FAILED with retry (with exponential backoff)
+-- Parameters: :inbox_id, :error_message
+-- Backoff formula:
+--   attempt 1 => 1 minute
+--   attempt 2 => 5 minutes
+--   attempt 3 => 15 minutes
+--   attempt 4 => 1 hour
+--   attempt 5 => 6 hours
+--   attempt >= 5 => status = 'DEAD' (no more retries)
+
+-- UPDATE service_ops.integration_inbox
+-- SET 
+--     status = CASE 
+--         WHEN attempt_count >= 5 THEN 'DEAD'
+--         ELSE 'FAILED'
+--     END,
+--     last_error = :error_message,
+--     next_attempt_at = CASE 
+--         WHEN attempt_count = 0 THEN NOW() + INTERVAL '1 minute'
+--         WHEN attempt_count = 1 THEN NOW() + INTERVAL '5 minutes'
+--         WHEN attempt_count = 2 THEN NOW() + INTERVAL '15 minutes'
+--         WHEN attempt_count = 3 THEN NOW() + INTERVAL '1 hour'
+--         WHEN attempt_count = 4 THEN NOW() + INTERVAL '6 hours'
+--         ELSE NOW() + INTERVAL '24 hours'  -- Fallback (shouldn't reach here)
+--     END,
+--     locked_by = NULL,
+--     locked_at = NULL,
+--     updated_at = NOW()
+-- WHERE inbox_id = :inbox_id;
+
+-- ============================================================================
+-- F) WATERMARK UPDATE SQL
+-- ============================================================================
+-- Update watermark after processing a batch
+-- Parameters: :max_created_at, :max_message_id
+
+-- UPSERT pattern:
+-- INSERT INTO service_ops.integration_poll_watermark (
+--     id,
+--     last_created_at,
+--     last_message_id,
+--     updated_at
+-- )
+-- VALUES (1, :max_created_at, :max_message_id, NOW())
+-- ON CONFLICT (id) 
+-- DO UPDATE SET 
+--     last_created_at = GREATEST(
+--         service_ops.integration_poll_watermark.last_created_at,
+--         EXCLUDED.last_created_at
+--     ),
+--     last_message_id = GREATEST(
+--         service_ops.integration_poll_watermark.last_message_id,
+--         EXCLUDED.last_message_id
+--     ),
+--     updated_at = NOW();
+
+-- ============================================================================
+-- G) GET WATERMARK SQL
+-- ============================================================================
+-- Get current watermark for polling
+-- SELECT last_created_at, last_message_id
+-- FROM service_ops.integration_poll_watermark
+-- WHERE id = 1;
+

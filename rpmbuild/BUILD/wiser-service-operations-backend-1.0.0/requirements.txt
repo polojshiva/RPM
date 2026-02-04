@@ -1,0 +1,42 @@
+# FastAPI and ASGI server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+gunicorn>=21.0.0  # Production WSGI server (used with uvicorn workers)
+
+# Authentication
+pyjwt==2.8.0
+bcrypt==4.1.2
+python-multipart==0.0.6
+
+# Validation and Settings
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# Security
+python-jose[cryptography]==3.3.0
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+httpx==0.26.0
+
+# Utilities
+python-dateutil==2.8.2
+
+# Database ORM
+sqlalchemy==2.0.45
+psycopg2-binary>=2.9.9  # PostgreSQL adapter (required for SQLAlchemy PostgreSQL connections)
+
+# Azure Services
+azure-storage-blob>=12.19.0  # Azure Blob Storage client (for downloading/uploading documents)
+azure-identity>=1.15.0  # Azure authentication (DefaultAzureCredential for Managed Identity)
+
+# Configuration
+python-dotenv>=1.0.0  # Load environment variables from .env file
+
+# Document Processing
+pypdf>=3.0.0  # PDF splitting (fallback, has form field preservation issues)
+PyMuPDF>=1.23.0  # PDF splitting (primary - preserves form fields and annotations)
+Pillow>=10.0.0  # Image processing (TIFF, PNG, JPG)
+reportlab>=4.0.0  # Text-to-PDF rendering
